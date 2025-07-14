@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Depends, Body
 from app.db.client import db_client
 from bson import ObjectId
 from datetime import datetime
@@ -6,33 +6,74 @@ from bson import ObjectId, errors as bson_errors
 from app.db.schemas.patient import *
 from app.db.Models.patient import PatientCreate
 from datetime import datetime, date
+from app.security.auth import get_current_user
 
 router = APIRouter(prefix="/create-patient", tags=["create-patient"])
 
 
 #POST PACIENTE FUNCIONANDO
-@router.post("/", response_model = PatientCreate, summary="Crear un nuevo paciente", response_description="Paciente creado")
+# @router.post("/", response_model = PatientCreate, summary="Crear un nuevo paciente", response_description="Paciente creado")
 
-async def create_patient(patient_data: PatientCreate):
+# async def create_patient(patient_data: PatientCreate):
 
+#     duplicated = search_duplicated(patient_data.document)
+#     if isinstance(duplicated, PatientCreate):
+#         raise HTTPException(status_code=409, detail="El documento ya existe")
+
+#     patient_dict = dict(patient_data)
+#     del patient_dict["id"]
+
+#     # Convertir birth_date de date a datetime
+#     if isinstance(patient_dict["birth_date"], date):
+#         patient_dict["birth_date"] = datetime.combine(patient_dict["birth_date"], datetime.min.time())
+
+#      # Convertimos caretakers_ids de str a ObjectId si existe
+#     if "caretakers_ids" in patient_dict:
+#         patient_dict["caretakers_ids"] = [ObjectId(cid) for cid in patient_dict["caretakers_ids"]]
+
+#     ide = db_client.conectacare.patient.insert_one(patient_dict).inserted_id
+#     new_patient = patient_schema(db_client.conectacare.patient.find_one({"_id": ide}))
+#     return PatientCreate(**new_patient)
+
+
+# def search_duplicated(document: int):
+#     patient_found = db_client.conectacare.patient.find_one({"document": document})
+#     if patient_found:
+#         return PatientCreate(**patient_schema(patient_found))
+#     return None
+
+@router.post("/", response_model=PatientCreate, summary="Crear un nuevo paciente", response_description="Paciente creado")
+async def create_patient(
+    patient_data: PatientCreate,
+    current_user: dict = Depends(get_current_user)  # cuidador autenticado desde JWT
+):
+    # Verificar duplicado por documento
     duplicated = search_duplicated(patient_data.document)
     if isinstance(duplicated, PatientCreate):
         raise HTTPException(status_code=409, detail="El documento ya existe")
 
+    # Convertimos modelo a dict y eliminamos el campo 'id'
     patient_dict = dict(patient_data)
-    del patient_dict["id"]
+    patient_dict.pop("id", None)
 
-    # Convertir birth_date de date a datetime
-    if isinstance(patient_dict["birth_date"], date):
+    # Convertir birth_date de date a datetime (con hora mínima)
+    if isinstance(patient_dict.get("birth_date"), date):
         patient_dict["birth_date"] = datetime.combine(patient_dict["birth_date"], datetime.min.time())
 
-     # Convertimos caretakers_ids de str a ObjectId si existe
-    if "caretakers_ids" in patient_dict:
-        patient_dict["caretakers_ids"] = [ObjectId(cid) for cid in patient_dict["caretakers_ids"]]
+    # Procesar caretakers_ids: convertir strings a ObjectId si ya vienen
+    caretakers_ids = patient_dict.get("caretakers_ids", [])
+    patient_dict["caretakers_ids"] = [ObjectId(cid) for cid in caretakers_ids if cid]
 
-    ide = db_client.conectacare.patient.insert_one(patient_dict).inserted_id
-    new_patient = patient_schema(db_client.conectacare.patient.find_one({"_id": ide}))
-    return PatientCreate(**new_patient)
+    # Agregar el cuidador actual si no está
+    current_caretaker_id = ObjectId(current_user["id"])
+    if current_caretaker_id not in patient_dict["caretakers_ids"]:
+        patient_dict["caretakers_ids"].append(current_caretaker_id)
+
+    # Insertar paciente en la base de datos
+    inserted_id = db_client.conectacare.patient.insert_one(patient_dict).inserted_id
+    new_patient = db_client.conectacare.patient.find_one({"_id": inserted_id})
+
+    return PatientCreate(**patient_schema(new_patient))
 
 
 def search_duplicated(document: int):
