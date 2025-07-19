@@ -1,0 +1,7 @@
+pymongo
+pydantic
+fastapi
+uvicorn
+dotenv
+os
+
