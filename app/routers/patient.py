@@ -10,38 +10,7 @@ from app.security.auth import get_current_user
 
 router = APIRouter(prefix="/create-patient", tags=["create-patient"])
 
-
 #POST PACIENTE FUNCIONANDO
-# @router.post("/", response_model = PatientCreate, summary="Crear un nuevo paciente", response_description="Paciente creado")
-
-# async def create_patient(patient_data: PatientCreate):
-
-#     duplicated = search_duplicated(patient_data.document)
-#     if isinstance(duplicated, PatientCreate):
-#         raise HTTPException(status_code=409, detail="El documento ya existe")
-
-#     patient_dict = dict(patient_data)
-#     del patient_dict["id"]
-
-#     # Convertir birth_date de date a datetime
-#     if isinstance(patient_dict["birth_date"], date):
-#         patient_dict["birth_date"] = datetime.combine(patient_dict["birth_date"], datetime.min.time())
-
-#      # Convertimos caretakers_ids de str a ObjectId si existe
-#     if "caretakers_ids" in patient_dict:
-#         patient_dict["caretakers_ids"] = [ObjectId(cid) for cid in patient_dict["caretakers_ids"]]
-
-#     ide = db_client.conectacare.patient.insert_one(patient_dict).inserted_id
-#     new_patient = patient_schema(db_client.conectacare.patient.find_one({"_id": ide}))
-#     return PatientCreate(**new_patient)
-
-
-# def search_duplicated(document: int):
-#     patient_found = db_client.conectacare.patient.find_one({"document": document})
-#     if patient_found:
-#         return PatientCreate(**patient_schema(patient_found))
-#     return None
-
 @router.post("/", response_model=PatientCreate, summary="Crear un nuevo paciente", response_description="Paciente creado")
 async def create_patient(
     patient_data: PatientCreate,
@@ -116,7 +85,14 @@ async def editpatient(patient_id: str, patient_update:PatientCreate):
 
 #GET PATIENTS FUNCIONANDO
 @router.get("/", summary="Obtener lista de pacientes", response_description="Lista de pacientes")
-async def get_patients():
+async def get_patients(current_user: dict = Depends(get_current_user)):
+    caretaker_id = current_user["id"]
+    caretaker_id_object = ObjectId(caretaker_id)
 
-    patients = patient_schema_starting_list(db_client.conectacare.patient.find())
+    # Buscamos pacientes cuyo caretakers_ids contenga el ID del cuidador
+    patients_cursor = db_client.conectacare.patient.find({
+        "caretakers_ids": caretaker_id_object 
+    })
+
+    patients = patient_schema_starting_list(patients_cursor)
     return patients
