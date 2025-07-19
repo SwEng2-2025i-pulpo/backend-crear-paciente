@@ -1,3 +1,4 @@
+# función para obtener el id del token (en str y dict) que viene del login y del front. (caretaker)
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt

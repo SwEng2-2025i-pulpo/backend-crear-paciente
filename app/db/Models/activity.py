@@ -31,11 +31,6 @@ class HygieneLog(BaseModel):
     assistance_level: str
     observations: Optional[str] = ""
 
-class WeightByMonth(BaseModel):
-    id: Optional[str] = None
-    month: str
-    value: int
-
 # Sub-model for blood pressure
 class BloodPressure(BaseModel):
     systolic: int
@@ -45,7 +40,7 @@ class BloodPressure(BaseModel):
 class VitalSigns(BaseModel):
     id: Optional[str] = None
     datetime: datetime
-    weight_by_month: List[WeightByMonth]
+    weight_by_month: int
     blood_pressure: BloodPressure
     heart_rate: int
     observations: str
