@@ -4,7 +4,7 @@ from bson import ObjectId
 from datetime import datetime
 from bson import ObjectId, errors as bson_errors
 from app.db.schemas.patient import *
-from app.db.Models.patient import PatientCreate
+from app.db.Models.patient import PatientCreate, Patient_Update
 from datetime import datetime, date
 from app.security.auth import get_current_user
 
@@ -53,7 +53,7 @@ def search_duplicated(document: int):
 
 #PUT PACIENTE FUNCIONANDO
 @router.put("/{patient_id}/edit_patient", response_model=PatientCreate, summary="Editar un paciente", response_description="Paciente actualizado")
-async def editpatient(patient_id: str, patient_update:PatientCreate):
+async def editpatient(patient_id: str, patient_update:Patient_Update):
     try:
         object_id = ObjectId(patient_id)
     except bson_errors.InvalidId:
@@ -64,7 +64,7 @@ async def editpatient(patient_id: str, patient_update:PatientCreate):
     if not patient:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     patient_update_dict = patient_update.dict()
-    patient_update_dict["id"] = object_id
+    patient_update_dict["_id"] = object_id
 
     if isinstance(patient_update_dict["birth_date"], date):
         patient_update_dict["birth_date"] = datetime.combine(patient_update_dict["birth_date"], datetime.min.time())
@@ -78,7 +78,7 @@ async def editpatient(patient_id: str, patient_update:PatientCreate):
         updated_patient = db_client.conectacare.patient.find_one({"_id": object_id})
         if updated_patient is None:
             raise HTTPException(status_code=400, detail="Error interno: paciente actualizado no encontrado")
-        return PatientCreate(**patient_schema(updated_patient))
+        return Patient_Update(**patient_schema(updated_patient))
 
     raise HTTPException(status_code=304, detail="No se realizaron cambios en el paciente")
 
