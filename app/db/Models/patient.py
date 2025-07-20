@@ -26,3 +26,10 @@ class PatientCreate(BaseModel):
     hygiene_logs: List[HygieneLog] = []
     vital_signs: List[VitalSigns] = []
     symptoms: List[Symptom] = []
+
+class Patient_Update(BaseModel):
+    name: str
+    last_name: str
+    birth_date: date
+    age: int
+    document: int
